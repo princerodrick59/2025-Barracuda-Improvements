@@ -5,10 +5,13 @@
 package frc.robot.commands.AutoAlign;
 
 import static edu.wpi.first.units.Units.MetersPerSecond;
+import static edu.wpi.first.units.Units.Seconds;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+
+import org.littletonrobotics.junction.Logger;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.path.GoalEndState;
@@ -22,6 +25,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.units.measure.LinearVelocity;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.Constants.ReefConstants;
@@ -111,6 +115,8 @@ public class AlignToReef extends Command {
 
     
   }
+  
+  
 
   // Method to generate a path from the current robot pose to a waypoint
   public Command getPathFromWaypoint(Pose2d waypoint){
@@ -123,6 +129,15 @@ public class AlignToReef extends Command {
     // Create path constraints
     PathConstraints pathConstraints = new PathConstraints(1.5, 3, 180, 360);
 
+    if (waypoints.get(0).anchor().getDistance(waypoints.get(1).anchor()) < 0.01) {
+      return 
+      Commands.sequence(
+          Commands.print("start position PID loop"),
+          PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2)),
+          Commands.print("end position PID loop")
+      );
+  }
+
     // Create path from waypoints and constraints
     PathPlannerPath path = new PathPlannerPath(
                                               waypoints,
@@ -134,10 +149,17 @@ public class AlignToReef extends Command {
     path.preventFlipping = true;
 
     // Return command to follow path
-    return AutoBuilder.followPath(path);
+    return (AutoBuilder.followPath(path).andThen(
+            PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2))
+            ))
+          .finallyDo((interupt) -> {
+            if (interupt) { //if this is false then the position pid would've X'ed the wheels & called the same method
+                m_swerveSubsystem.drive(new ChassisSpeeds(0,0,0));
+            }
+        });
+    }
 
                                             
-  }
 
   // Method to get Velocity Magnitude from ChassisSpeeds
   private LinearVelocity getVelociyMagnitude(ChassisSpeeds cs){
@@ -236,6 +258,8 @@ public class AlignToReef extends Command {
       default:
       return AlignToTheClosestRightReefBranch();
     }
+
+
   }
 
 

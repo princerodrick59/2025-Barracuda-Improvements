@@ -467,11 +467,11 @@ public class RobotContainer
 
 
 
-      DRIVER_A_BUTTON.whileTrue(
+      m_driverController.button(0).whileTrue(
         m_alignToReef.AlignToTheClosestBranch(ReefSide.LEFT)
       );
 
-      DRIVER_B_BUTTON.whileTrue(
+      m_driverController.button(1).whileTrue(
         m_alignToReef.AlignToTheClosestBranch(ReefSide.RIGHT)
       );
       
