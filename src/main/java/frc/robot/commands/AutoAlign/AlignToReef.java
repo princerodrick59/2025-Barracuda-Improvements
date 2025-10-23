@@ -27,6 +27,10 @@ import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.Constants.ReefConstants;
+import frc.robot.commands.Sequential.Reef.L1_CMD;
+import frc.robot.commands.Sequential.Reef.L3_CMD;
+import frc.robot.subsystems.ElevatorSubsystem;
+import frc.robot.subsystems.EndEffectorSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 
 /* You should consider using the more terse Command factories API instead https://docs.wpilib.org/en/stable/docs/software/commandbased/organizing-command-based.html#defining-commands */
@@ -41,15 +45,30 @@ public class AlignToReef extends Command {
     RIGHT
   }
 
+  public enum ReefLevel {
+    L1,
+    L2,
+    L3,
+    L4,
+    STOW
+  }
+
+  public ReefLevel desiredLevel = ReefLevel.STOW;
+
   public ArrayList<Pose2d> allReefPoses = new ArrayList<Pose2d>();
   public ArrayList<Pose2d> leftReefPoses = new ArrayList<Pose2d>();
   public ArrayList<Pose2d> rightReefPoses = new ArrayList<Pose2d>();
   public ArrayList<Pose2d> POVBasedLeftReefPoses = new ArrayList<Pose2d>();
   public ArrayList<Pose2d> POVBasedRightReefPoses = new ArrayList<Pose2d>();
 
-  public AlignToReef(SwerveSubsystem swerveSubsystem) {
+  private ElevatorSubsystem m_elevatorSubsystem;
+  private EndEffectorSubsystem m_endEffectorSubsystem;
+
+  public AlignToReef(SwerveSubsystem swerveSubsystem, ElevatorSubsystem elevatorSubsystem, EndEffectorSubsystem endEffectorSubsystem) {
     // Use addRequirements() here to declare subsystem dependencies.
     m_swerveSubsystem = swerveSubsystem;
+    m_elevatorSubsystem = elevatorSubsystem;
+    m_endEffectorSubsystem = endEffectorSubsystem;
 
     addRequirements(m_swerveSubsystem);
 
@@ -108,14 +127,14 @@ public class AlignToReef extends Command {
 
     PathConstraints pathConstraints = new PathConstraints(1.5, 3, 180, 360);
 
-    if (waypoints.get(0).anchor().getDistance(waypoints.get(1).anchor()) <0.01) {
-      return
-      Commands.sequence(
-          Commands.print("start position PID loop"),
-          PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2)),
-          Commands.print("end position PID loop")  
-      );
-    }
+    // if (waypoints.get(0).anchor().getDistance(waypoints.get(1).anchor()) <0.01) {
+    //   return
+    //   Commands.sequence(
+    //       Commands.print("start position PID loop"),
+    //       PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2)),
+    //       Commands.print("end position PID loop")  
+    //   );
+    // }
 
     PathPlannerPath path = new PathPlannerPath(
                                               waypoints, 
@@ -125,43 +144,32 @@ public class AlignToReef extends Command {
 
     path.preventFlipping = true;
 
-    return (AutoBuilder.followPath(path).andThen(
-            PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2))
-            ))
-    .finallyDo((Interupt) -> {
-      if (Interupt) {
-        m_swerveSubsystem.drive(new ChassisSpeeds(0,0,0));
-      }
+    return (AutoBuilder.followPath(path)
+            .andThen(
+                    PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2))))
+            .alongWith(
+                    
+                    PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2))
+                    .beforeStarting(Commands.print("Starting final approach PID"))
+                    .andThen(Commands.print("Ending final approach PID"))
+                    .onlyIf(
+                            ()-> m_swerveSubsystem.getPose().getTranslation().getDistance(waypoints.get(1).anchor()) < 0.25)
+                            .repeatedly())
+                    
+            .alongWith(
+                    getDesiredReefCommand(desiredLevel)
+                    .beforeStarting(Commands.print("Moving to " + desiredLevel.toString() + " Reef Position"))
+                    .onlyIf(
+                            ()-> m_swerveSubsystem.getPose().getTranslation().getDistance(waypoints.get(1).anchor()) < 1)
+                            .repeatedly())
+                    
+            .finallyDo((Interupt) -> {
+              if (Interupt) {
+                m_swerveSubsystem.drive(new ChassisSpeeds(0,0,0));
+              }
     });
   }
-  public Command getPathFromWaypointHP(Pose2d waypoint) {
-    List<Waypoint> waypoints = PathPlannerPath.waypointsFromPoses(
-      new Pose2d(m_swerveSubsystem.getPose().getTranslation(), getPathVelocityHeading(m_swerveSubsystem.getFieldVelocity(), waypoint)),
-      waypoint
-    );
-
-    PathConstraints pathConstraints = new PathConstraints(1.5, 3, 180, 360);
-
-    if (waypoints.get(0).anchor().getDistance(waypoints.get(1).anchor()) <0.01) {
-      return
-      Commands.sequence(
-          Commands.print("start position PID loop"),
-          PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2)),
-          Commands.print("end position PID loop")  
-      );
-    }
-
-    PathPlannerPath path = new PathPlannerPath(
-                                              waypoints, 
-                                              pathConstraints, 
-                                              new IdealStartingState(getVelocityMagnitude(m_swerveSubsystem.getFieldVelocity()), m_swerveSubsystem.getHeading()),
-                                              new GoalEndState(0.0, waypoint.getRotation()));
-
-    path.preventFlipping = true;
-
-    return (AutoBuilder.followPath(path))
-    ;
-  }
+  
 
 
   // Method to get Velocity Magnitude from ChassisSpeeds
@@ -191,13 +199,6 @@ public class AlignToReef extends Command {
     return currentPose.nearest(rightReefPoses);
   }
 
-  private Pose2d getClosestPOVBasedLeftBranch(Pose2d currentPose){
-    return currentPose.nearest(POVBasedLeftReefPoses);
-  }
-
-  private Pose2d getClosestPOVBasedRightBranch(Pose2d currentPose){
-    return currentPose.nearest(POVBasedRightReefPoses);
-  }
 
   public Command AlignToTheClosestReefBranch(){
     return Commands.defer(()-> {
@@ -217,33 +218,10 @@ public class AlignToReef extends Command {
     }, Set.of());
   }
 
-  private Command AlignToTheClosestPOVBasedLeftReefBranch(){
-    return Commands.defer(()->{
-      return getPathFromWaypoint(getClosestPOVBasedLeftBranch(m_swerveSubsystem.getPose()));
-    }, Set.of());
-  }
-
-  private Command AlignToTheClosestPOVBasedRightReefBranch(){
-    return Commands.defer(()->{
-      return getPathFromWaypoint(getClosestPOVBasedRightBranch(m_swerveSubsystem.getPose()));
-    }, Set.of());
-  }
-
   public Command AlignToLeftHP(){
     return Commands.defer(()->{
       return getPathFromWaypoint(new Pose2d(1.091,7.052,Rotation2d.fromDegrees(-55)));
     }, Set.of());
-  }
-
-  public Command AlignToTheClosestPOVBasedBranch(ReefSide side){
-    switch (side) {
-      case LEFT:
-        return AlignToTheClosestLeftReefBranch();
-      case RIGHT:
-        return AlignToTheClosestPOVBasedRightReefBranch();
-      default:
-      return AlignToTheClosestPOVBasedRightReefBranch();
-    }
   }
 
   public Command AlignToTheClosestBranch(ReefSide side){
@@ -256,6 +234,26 @@ public class AlignToReef extends Command {
       return AlignToTheClosestRightReefBranch();
     }
   }
+
+  public Command setDesiredReefLevel(ReefLevel level){
+    return Commands.runOnce(() -> desiredLevel = level)
+          .alongWith(Commands.print("Set desired reef level to " + level.toString()));
+  }
+
+  private Command getDesiredReefCommand(ReefLevel level){
+    switch (level) {
+      case L1:
+        return new L1_CMD(m_elevatorSubsystem, m_endEffectorSubsystem);
+      case L2:
+        return new L3_CMD(m_elevatorSubsystem, m_endEffectorSubsystem);
+      case L3:
+        return new L3_CMD(m_elevatorSubsystem, m_endEffectorSubsystem);
+      case L4:
+        return new L3_CMD(m_elevatorSubsystem, m_endEffectorSubsystem);
+      default:
+        return Commands.none();    
+    }
+  } 
 
 
 }
