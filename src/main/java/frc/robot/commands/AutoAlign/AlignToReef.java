@@ -35,13 +35,24 @@ import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.subsystems.EndEffectorSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 
-/* You should consider using the more terse Command factories API instead https://docs.wpilib.org/en/stable/docs/software/commandbased/organizing-command-based.html#defining-commands */
+/**
+ * The AlignToReef command is responsible for aligning the robot to a specific reef position
+ * on the field. It utilizes the SwerveSubsystem for movement, the ElevatorSubsystem for 
+ * vertical positioning, and the EndEffectorSubsystem for end effector operations. The command 
+ * supports aligning to predefined reef positions, adjusting the robot's heading based on 
+ * velocity or target pose, and moving the elevator to a desired reef level.
+ * 
+ */
+
 public class AlignToReef extends Command {
   /** Creates a new AlignToReef. */
 
   //Subsystems
   private SwerveSubsystem m_swerveSubsystem;
+  private ElevatorSubsystem m_elevatorSubsystem;
+  private EndEffectorSubsystem m_endEffectorSubsystem;
 
+  //Enums
   public enum ReefSide {
     LEFT, 
     RIGHT
@@ -55,18 +66,34 @@ public class AlignToReef extends Command {
     STOW
   }
 
-  public ReefLevel desiredLevel = ReefLevel.STOW;
+  private enum ReefBranch{
+    Alpha,
+    Bravo,
+    Charlie,
+    Delta,
+    Echo,
+    Foxtrot,
+    Golf,
+    Hotel,
+    India,
+    Juliet,
+    Kilo,
+    Lima
+  }
+
+  private ReefLevel desiredLevel = ReefLevel.STOW;
+
+
 
   private boolean isAutoAdjustActive = false;
 
-  public ArrayList<Pose2d> allReefPoses = new ArrayList<Pose2d>();
-  public ArrayList<Pose2d> leftReefPoses = new ArrayList<Pose2d>();
-  public ArrayList<Pose2d> rightReefPoses = new ArrayList<Pose2d>();
-  public ArrayList<Pose2d> POVBasedLeftReefPoses = new ArrayList<Pose2d>();
-  public ArrayList<Pose2d> POVBasedRightReefPoses = new ArrayList<Pose2d>();
+  private ArrayList<Pose2d> allReefPoses = new ArrayList<Pose2d>();
+  private ArrayList<Pose2d> leftReefPoses = new ArrayList<Pose2d>();
+  private ArrayList<Pose2d> rightReefPoses = new ArrayList<Pose2d>();
+  private ArrayList<Pose2d> POVBasedLeftReefPoses = new ArrayList<Pose2d>();
+  private ArrayList<Pose2d> POVBasedRightReefPoses = new ArrayList<Pose2d>();
 
-  private ElevatorSubsystem m_elevatorSubsystem;
-  private EndEffectorSubsystem m_endEffectorSubsystem;
+
 
   public AlignToReef(SwerveSubsystem swerveSubsystem, ElevatorSubsystem elevatorSubsystem, EndEffectorSubsystem endEffectorSubsystem) {
     // Use addRequirements() here to declare subsystem dependencies.
@@ -190,13 +217,22 @@ public class AlignToReef extends Command {
   
 
 
-  // Method to get Velocity Magnitude from ChassisSpeeds
+  /**
+   * Method to get the velocity magnitude from chassis speeds 
+   * @param cs ChassisSpeeds of the robot
+   * @return LinearVelocity magnitude of the robot 
+   */
   private LinearVelocity getVelocityMagnitude(ChassisSpeeds cs){
     return MetersPerSecond.of(new Translation2d(cs.vxMetersPerSecond, cs.vyMetersPerSecond).getNorm());
   
   }
 
-  // Method to get the heading based on the current velocity of the robot
+  /**
+   * Method to get the heading based on path velocity or target pose
+   * @param cs ChassisSpeeds of the robot
+   * @param targetPose Target Pose2d to align to
+   * @return Rotation2d heading for the path 
+   */
   private Rotation2d getPathVelocityHeading(ChassisSpeeds cs, Pose2d targetPose){
     if (getVelocityMagnitude(cs).in(MetersPerSecond) < 0.25) { // If the robot is moving slower than 0.25 m/s, face the target
       var diff = targetPose.minus(m_swerveSubsystem.getPose()).getTranslation();
@@ -205,43 +241,154 @@ public class AlignToReef extends Command {
     return new Rotation2d(cs.vxMetersPerSecond, cs.vyMetersPerSecond);
   }
 
+  /**
+   * Method to get the closest reef branch to the current pose
+   * @param currentPose Current Pose2d of the robot
+   * @return Pose2d of the closest reef branch
+   */
   private Pose2d getClosestBranch(Pose2d currentPose){
   return currentPose.nearest(allReefPoses);
   }
 
+  /** 
+   * Method to get the closest left reef branch to the current pose
+   * @param currentPose Current Pose2d of the robot
+   * @return Pose2d of the closest left reef branch
+   */
   private Pose2d getClosestLeftBranch(Pose2d currentPose){
     return currentPose.nearest(leftReefPoses);
   }
-
+  /** 
+   * Method to get the closest right reef branch to the current pose
+   * @param currentPose Current Pose2d of the robot
+   * @return Pose2d of the closest right reef branch
+   */
   private Pose2d getClosestRightBranch(Pose2d currentPose){
     return currentPose.nearest(rightReefPoses);
   }
 
+  /**
+   * Method to align to a desired reef branch
+   * @param branch ReefBranch to align to
+   * @return Command to align to the desired reef branch
+   */
+  public Command AlignToDesiredBranch(ReefBranch branch){
+    switch (branch) {
+      case Alpha:
 
-  public Command AlignToTheClosestReefBranch(){
-    return Commands.defer(()-> {
-      return getPathFromWaypoint(getClosestBranch(m_swerveSubsystem.getPose()));
-    }, Set.of());
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(0));
+      }, Set.of());
+
+      case Bravo:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(1));
+      }, Set.of());
+
+      case Charlie:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(2));
+      }, Set.of());
+
+      case Delta:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(3));
+      }, Set.of());
+
+      case Echo:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(4));
+      }, Set.of());
+
+      case Foxtrot:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(5));
+      }, Set.of());
+
+      case Golf:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(6));
+      }, Set.of());
+
+      case Hotel:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(7));
+      }, Set.of());
+
+      case India:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(8));
+      }, Set.of());
+
+      case Juliet:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(9));
+      }, Set.of());
+
+      case Kilo:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(10));
+      }, Set.of());
+
+      case Lima:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(allReefPoses.get(11));
+      }, Set.of());
+
+      default:
+      return Commands.none();
+      
+
+    
+    
+    }
   }
 
+  /**
+   * Method to align to the closest left reef branch
+   * @return Command to align to the closest left reef branch
+   */
   private Command AlignToTheClosestLeftReefBranch(){
     return Commands.defer(()->{
     return getPathFromWaypoint(getClosestLeftBranch(m_swerveSubsystem.getPose()));
     }, Set.of());
   }
 
+  /**
+   * Method to align to the closest right reef branch
+   * @return Command to align to the closest right reef branch
+   */
   private Command AlignToTheClosestRightReefBranch(){
     return Commands.defer(()->{
       return getPathFromWaypoint(getClosestRightBranch(m_swerveSubsystem.getPose()));
     }, Set.of());
   }
 
+  /**
+   * Method to align to the right HP
+   * @return Command to align to the HP
+   */
   public Command AlignToLeftHP(){
     return Commands.defer(()->{
       return getPathFromWaypoint(new Pose2d(1.091,7.052,Rotation2d.fromDegrees(-55)));
     }, Set.of());
   }
 
+    /**
+   * Method to align to the closest reef branch
+   * @return Command to align to the closest reef branch
+   */
+  public Command AlignToTheClosestReefBranch(){
+    return Commands.defer(()-> {
+      return getPathFromWaypoint(getClosestBranch(m_swerveSubsystem.getPose()));
+    }, Set.of());
+  }
+
+  /**
+   * Method to align to the closest reef branch on a specific side
+   * @param side ReefSide to align to
+   * @return Command to align to the closest reef branch on the specified side
+   */
   public Command AlignToTheClosestBranch(ReefSide side){
     switch (side) {
       case LEFT:
@@ -253,11 +400,21 @@ public class AlignToReef extends Command {
     }
   }
 
+  /**
+   * Method to set the desired reef level
+   * @param level ReefLevel to set as desired
+   * @return Command to set the desired reef level
+   */
   public Command setDesiredReefLevel(ReefLevel level){
     return Commands.runOnce(() -> desiredLevel = level)
           .alongWith(Commands.print("Set desired reef level to " + level.toString()));
   }
-
+  
+  /**
+   * Method to get the command to move the elevator to the desired reef level
+   * @param level ReefLevel to move the elevator to
+   * @return Command to move the elevator to the desired reef level
+   */
   private Command getDesiredReefCommand(ReefLevel level){
     switch (level) {
       case L1:
@@ -273,11 +430,20 @@ public class AlignToReef extends Command {
     }
   } 
 
+  /**
+   * Method to set the auto adjust active state
+   * @param isActive boolean to set the auto adjust active state
+   * @return Command to set the auto adjust active state
+   */
   public Command setAutoAdjustActive(boolean isActive){
     return Commands.runOnce(()-> isAutoAdjustActive = isActive);
   }
 
   @AutoLogOutput
+  /**
+   * Method to get the auto adjust active state
+   * @return boolean of the auto adjust active state
+   */
   public boolean getIsAutoAdjustActive(){
     return isAutoAdjustActive;
   }
