@@ -46,7 +46,8 @@ public class LEDSubsystem extends SubsystemBase {
     Handoff_Coral,
     BROWNOUT,
     ENDGAME,
-    Stow
+    Stow,
+    Auto_Align
     
   }
 
@@ -99,7 +100,10 @@ public class LEDSubsystem extends SubsystemBase {
         m_CANdle.setLEDs(255, 255, 0); // Brown
         break;
       case ENDGAME:
-      m_CANdle.animate(new StrobeAnimation(255, 0, 0, 255, 0.1, LEDConstants.kLEDCount)); // Red
+        m_CANdle.animate(new StrobeAnimation(255, 0, 0, 255, 0.1, LEDConstants.kLEDCount));
+        break;
+      case Auto_Align:
+        m_CANdle.animate(new StrobeAnimation(0, 255, 0, 255, 0.25, LEDConstants.kLEDCount));
     }
   }
 
@@ -113,6 +117,8 @@ public class LEDSubsystem extends SubsystemBase {
       setCANdle(LED_States.EE_Has_Coral);
     }else if(m_robotContainer.m_L2_Algae_Removal.isScheduled() || m_robotContainer.m_L3_Algae_Removal.isScheduled()){
       setCANdle(LED_States.Algae_Removal);
+    }else if (m_robotContainer.m_driverController.leftBumper().getAsBoolean() || m_robotContainer.m_driverController.rightBumper().getAsBoolean()) {
+      setCANdle(LED_States.Auto_Align);
     }else{
       setCANdle(LED_States.Stow);
     }

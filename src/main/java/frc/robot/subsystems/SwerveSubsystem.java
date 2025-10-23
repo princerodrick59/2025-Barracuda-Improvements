@@ -4,7 +4,6 @@
 
 package frc.robot.subsystems;
 
-import static edu.wpi.first.units.Units.DegreesPerSecond;
 import static edu.wpi.first.units.Units.Meter;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 
@@ -56,11 +55,10 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Config;
 import frc.robot.Constants;
-import frc.robot.LimelightHelpers;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.Constants.VisionConstants;
+import frc.robot.LimelightHelpers;
 import frc.robot.LimelightHelpers.PoseEstimate;
-import frc.robot.LimelightHelpers.RawFiducial;
 import swervelib.SwerveController;
 import swervelib.SwerveDrive;
 import swervelib.SwerveDriveTest;
@@ -72,24 +70,18 @@ import swervelib.parser.SwerveParser;
 import swervelib.telemetry.SwerveDriveTelemetry;
 import swervelib.telemetry.SwerveDriveTelemetry.TelemetryVerbosity;
 
-
 public class SwerveSubsystem extends SubsystemBase
 {
 
   private final SwerveDrive swerveDrive;
   
-
-
-
-  // Booleans to enable/disable vision pose integration
-  boolean useLLmt2 = true;
+  //Booleans to enable/disable
   boolean useLLmt1 = true;
-
-
+  boolean useLLmt2 = true;
 
   public SwerveSubsystem(File directory)
   {
-    
+
     
     // Configure the Telemetry before creating the SwerveDrive to avoid unnecessary objects being created.
     SwerveDriveTelemetry.verbosity = TelemetryVerbosity.LOW;
@@ -114,8 +106,6 @@ public class SwerveSubsystem extends SubsystemBase
                                                 1); // Enable if you want to resynchronize your absolute encoders and motor encoders periodically when they are not moving.
 //    swerveDrive.pushOffsetsToEncoders(); // Set the absolute encoder to be used over the internal encoder and push the offsets onto it. Throws warning if not possible
     setupPathPlanner();
-    
-
 
   }
 
@@ -139,15 +129,14 @@ public class SwerveSubsystem extends SubsystemBase
    */
 
   @Override
-  public void periodic(){
-    // Update the swerve drive.
-    if (useLLmt2) {
-      setupLimeLightMegaTag2();
-    }
+  public void periodic()
+  { 
     if (useLLmt1) {
-      setupLimeLightMegaTag1();
+      setUpLimeLightMegaTag1();
     }
-
+    if (useLLmt2) {
+      setUpLimeLightMegaTag2();
+    }
   }
 
   @Override
@@ -155,62 +144,42 @@ public class SwerveSubsystem extends SubsystemBase
   {
   }
 
+  public void setUpLimeLightMegaTag1() {
+    boolean mt1ValidPose = true;
 
-  // Integrate the Limelight MegaTag 2 Pose Estimation
-  public void setupLimeLightMegaTag2(){
+    LimelightHelpers.PoseEstimate mt1Result = LimelightHelpers.getBotPoseEstimate_wpiBlue(VisionConstants.kLimeLight_Reef_Name);
+
+    if(mt1Result != null) {
+      if (mt1Result.tagCount == 0) {
+        mt1ValidPose = false;
+      }
+
+      Logger.recordOutput("Subsystems/VisionSubsystem/MegaTag1/Pose2D", mt1Result.pose);
+
+      if (mt1ValidPose) {
+        swerveDrive.addVisionMeasurement(mt1Result.pose, mt1Result.timestampSeconds, getMegaTag1StdDevs(mt1Result));
+      }
+    }
+  }
   
+  public void setUpLimeLightMegaTag2() {
     boolean mt2ValidPose = true;
 
-    // Set the robot orientation for the limelight - Fetching Robot orientation from the SwerveDrive odometry
     LimelightHelpers.SetRobotOrientation(VisionConstants.kLimeLight_Reef_Name, getPose().getRotation().getDegrees(), 0, 0, 0, 0, 0);
 
-    // Get the Pose estimation from the Limelight
     LimelightHelpers.PoseEstimate mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(VisionConstants.kLimeLight_Reef_Name);
 
-    // If we have a valid pose, add it to the odometry
-    if(mt2Result != null){
-      // If no tags detected or the robot is rotating too fast, ignore the pose
-      if(mt2Result.tagCount == 0|| Math.abs(getRobotVelocity().omegaRadiansPerSecond) > (4 * Math.PI) /* Rad/s of 720 deg/s*/){
+    if(mt2Result != null) {
+      if (mt2Result.tagCount == 0 || Math.abs(getRobotVelocity().omegaRadiansPerSecond) > (4 * Math.PI )) {
         mt2ValidPose = false;
       }
 
-      // Post the pose to the logger
-      Logger.recordOutput("Subsystems/VisionSubsystem/MegaTag2/Pose2d", mt2Result.pose);
-      
-      // Add the vision measurement to the swerve drive pose estimator
+      Logger.recordOutput("Subsystems/VisionSubsystem/MegaTag2/Pose2D", mt2Result.pose);
+
       if (mt2ValidPose) {
         swerveDrive.addVisionMeasurement(mt2Result.pose, mt2Result.timestampSeconds, getEstimationStdDevsLimelightMT2(mt2Result));
       }
-
     }
-
-  }
-
-  // Integrate the Limelight MegaTag 1 Rotation Estimation
-  public void setupLimeLightMegaTag1(){
-
-    boolean mt1ValidPose = true;
-    
-    // Get the Pose estimation from the Limelight
-    LimelightHelpers.PoseEstimate mt1Result = LimelightHelpers.getBotPoseEstimate_wpiBlue(VisionConstants.kLimeLight_Reef_Name);
-
-      // If we have a valid pose, add it to the odometry
-      if(mt1Result != null){
-        
-        // If no tags detected, ignore the pose
-        if(mt1Result.tagCount == 0){
-          mt1ValidPose = false;
-        }
-        
-        // Post the pose to the logger
-        Logger.recordOutput("Subsystems/VisionSubsystem/MegaTag1/Pose2d", mt1Result.pose);
-        
-        // Add the vision measurement to the swerve drive pose estimator
-        if (mt1ValidPose) {
-          swerveDrive.addVisionMeasurement(mt1Result.pose, mt1Result.timestampSeconds, getMegaTag1StdDevs(mt1Result));
-        }
-  
-      }
   }
 
   // Calculate the standard deviations for the MegaTag1 pose estimation based on number of tags, average distance and average ambiguity
@@ -254,7 +223,7 @@ public class SwerveSubsystem extends SubsystemBase
     Logger.recordOutput("Subsystems/VisionSubsystem/MegaTag1/Average Distance", avgDist);
 
     // If the average distance is too far, return very high std devs to ignore the pose
-    if (numTags == 1 && avgDist > 2.75) {
+    if (numTags == 1 && avgDist > 1.5) {
       estStdDevs = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE);
     }else{ // Scale the standard deviations based on the average distance
       estStdDevs = estStdDevs.times(1 + (avgDist * avgDist/30));
@@ -263,37 +232,36 @@ public class SwerveSubsystem extends SubsystemBase
     return estStdDevs;
   }
 
-  public static Matrix<N3, N1> getEstimationStdDevsLimelightMT2(PoseEstimate poseEstimate){ {
-        var estStdDevs = VisionConstants.kReefStdDevs;
-        
-        int numTags = 0;
-        double avgDist = 0;
-        for (var value : poseEstimate.rawFiducials) {
-            numTags++;
-            avgDist += value.distToCamera;
-        }
-        if (numTags == 0)
-            return estStdDevs;
-        avgDist /= numTags;
+  public static Matrix<N3, N1> getEstimationStdDevsLimelightMT2(PoseEstimate poseEstimate) {
+    var estStdDevs = VisionConstants.kReefStdDevs;
+    
+    int numTags = 0;
+    double avgDist = 0;
+    for (var value : poseEstimate.rawFiducials) {
+        numTags++;
+        avgDist += value.distToCamera;
+    }
 
-        // Decrease std devs if multiple targets are visible
-        if (numTags > 1)
-            estStdDevs.times(0.7);
-
-        // Increase std devs based on (average) distance
-        if (numTags == 1 && avgDist > 5)
-            estStdDevs = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE);
-        else
-            estStdDevs = estStdDevs.times(1 + (avgDist * avgDist * 5));
-
+    if (numTags == 0) {
         return estStdDevs;
     }
 
-  }
+    avgDist /= numTags;
 
+    // Decrease std devs if multiple targets are visible
+    if (numTags > 1) {
+        estStdDevs.times(0.7);
+    }
 
+    // Increase std devs based on (average) distance
+    if (numTags == 1 && avgDist > 5) {
+        estStdDevs = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE);
+    }else {
+        estStdDevs = estStdDevs.times(1 + (avgDist * avgDist * 5));
+    }
 
-
+    return estStdDevs;
+}
 
 
   /**
@@ -366,16 +334,6 @@ public class SwerveSubsystem extends SubsystemBase
     // IF USING CUSTOM PATHFINDER ADD BEFORE THIS LINE
     PathfindingCommand.warmupCommand().schedule();
   }
-
-
-
-    
-
-
-
-
-
-
   
   /**
    * Get the path follower with events.
@@ -411,6 +369,253 @@ public class SwerveSubsystem extends SubsystemBase
   }
 
 
+  public Command drive_To_Reef_A() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_A");
+    } catch (Exception e) {
+      System.out.println("Path not found_A");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+        
+    return AutoBuilder.pathfindThenFollowPath(path, constraints);
+  }
+
+  public Command drive_To_Reef_B() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_B");
+    } catch (Exception e) {
+      System.out.println("Path not found_B");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+    
+     PathPlannerPath path1 = new PathPlannerPath(
+            path.getWaypoints(), 
+            constraints,
+            new IdealStartingState(getVelocityMagnitude(swerveDrive.getFieldVelocity()), swerveDrive.getOdometryHeading()), 
+            new GoalEndState(0.0, path.getGoalEndState().rotation())
+        );
+        
+    return AutoBuilder.followPath(path);
+  }
+  private LinearVelocity getVelocityMagnitude(ChassisSpeeds cs){
+        return MetersPerSecond.of(new Translation2d(cs.vxMetersPerSecond, cs.vyMetersPerSecond).getNorm());
+    }
+
+
+
+  public Command drive_To_Reef_C() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_C");
+    } catch (Exception e) {
+      System.out.println("Path not found_C");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+        
+    return AutoBuilder.pathfindThenFollowPath(path, constraints);
+  }
+
+
+  public Command drive_To_Reef_D() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_D");
+    } catch (Exception e) {
+      System.out.println("Path not found_D");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+        
+    return AutoBuilder.pathfindThenFollowPath(path, constraints);
+  }
+
+  public Command drive_To_Reef_E() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_E");
+    } catch (Exception e) {
+      System.out.println("Path not found_E");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+        
+    return AutoBuilder.pathfindThenFollowPath(path, constraints);
+  }
+
+  public Command drive_To_Reef_F() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_F");
+    } catch (Exception e) {
+      System.out.println("Path not found_F");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+        
+    return AutoBuilder.pathfindThenFollowPath(path, constraints);
+  }
+
+  public Command drive_To_Reef_G() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_G");
+    } catch (Exception e) {
+      System.out.println("Path not found_G");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+        
+    return AutoBuilder.pathfindThenFollowPath(path, constraints);
+  }
+
+  public Command drive_To_Reef_H() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_H");
+    } catch (Exception e) {
+      System.out.println("Path not found_H");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+        
+    return AutoBuilder.pathfindThenFollowPath(path, constraints);
+  }
+
+  public Command drive_To_Reef_I() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_I");
+    } catch (Exception e) {
+      System.out.println("Path not found_I");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+        
+    return AutoBuilder.pathfindThenFollowPath(path, constraints);
+  }
+
+  public Command drive_To_Reef_J() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_J");
+    } catch (Exception e) {
+      System.out.println("Path not found_J");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+        
+    return AutoBuilder.pathfindThenFollowPath(path, constraints);
+  }
+
+  public Command drive_To_Reef_K() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_K");
+    } catch (Exception e) {
+      System.out.println("Path not found_K");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+        
+    return AutoBuilder.pathfindThenFollowPath(path, constraints);
+  }
+
+  public Command drive_To_Reef_L() {
+    PathPlannerPath path = null;
+    try {
+      path = PathPlannerPath.fromPathFile("Reef_L");
+    } catch (Exception e) {
+      System.out.println("Path not found_L");
+    }
+
+    if (path == null) {
+      return Commands.none();
+    }
+
+    PathConstraints constraints = new PathConstraints(
+        3, 3,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+        
+    return AutoBuilder.pathfindThenFollowPath(path, constraints);
+  }
+
+
+  /**
+   * Command to characterize the robot drive motors using SysId
+   *
+   * @return SysId Drive Command
+   */
   public Command sysIdDriveMotorCommand()
   {
     return SwerveDriveTest.generateSysIdCommand(

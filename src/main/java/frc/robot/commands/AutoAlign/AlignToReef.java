@@ -4,14 +4,12 @@
 
 package frc.robot.commands.AutoAlign;
 
-import static edu.wpi.first.units.Units.MetersPerSecond;
-import static edu.wpi.first.units.Units.Seconds;
+import static edu.wpi.first.units.Units.*;
+
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
-import org.littletonrobotics.junction.Logger;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.path.GoalEndState;
@@ -24,8 +22,8 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.units.CurrentUnit;
 import edu.wpi.first.units.measure.LinearVelocity;
-import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.Constants.ReefConstants;
@@ -35,37 +33,27 @@ import frc.robot.subsystems.SwerveSubsystem;
 public class AlignToReef extends Command {
   /** Creates a new AlignToReef. */
 
-  // Subsystems
+  //Subsystems
   private SwerveSubsystem m_swerveSubsystem;
 
-  // Reef Side Enum
   public enum ReefSide {
-    LEFT,
+    LEFT, 
     RIGHT
   }
 
-  // List of all reef branch poses
   public ArrayList<Pose2d> allReefPoses = new ArrayList<Pose2d>();
-
-  // List of left reef branch poses
   public ArrayList<Pose2d> leftReefPoses = new ArrayList<Pose2d>();
-
-  // List of right reef branch poses
   public ArrayList<Pose2d> rightReefPoses = new ArrayList<Pose2d>();
-
-  // List of POV based left reef branch poses
   public ArrayList<Pose2d> POVBasedLeftReefPoses = new ArrayList<Pose2d>();
-
-  // List of POV based right reef branch poses
   public ArrayList<Pose2d> POVBasedRightReefPoses = new ArrayList<Pose2d>();
-  
+
   public AlignToReef(SwerveSubsystem swerveSubsystem) {
     // Use addRequirements() here to declare subsystem dependencies.
     m_swerveSubsystem = swerveSubsystem;
-  
+
     addRequirements(m_swerveSubsystem);
 
-    // Add all reef poses to list
+    //add all reef poses to list
     allReefPoses.add(ReefConstants.kAlpha_Reef);
     allReefPoses.add(ReefConstants.kBravo_Reef);
     allReefPoses.add(ReefConstants.kCharlie_Reef);
@@ -79,7 +67,7 @@ public class AlignToReef extends Command {
     allReefPoses.add(ReefConstants.kKilo_Reef);
     allReefPoses.add(ReefConstants.kLima_Reef);
 
-    // Add left reef poses to list
+    //add left reef poses to list
     leftReefPoses.add(ReefConstants.kAlpha_Reef);
     leftReefPoses.add(ReefConstants.kCharlie_Reef);
     leftReefPoses.add(ReefConstants.kEcho_Reef);
@@ -87,7 +75,7 @@ public class AlignToReef extends Command {
     leftReefPoses.add(ReefConstants.kIndia_Reef);
     leftReefPoses.add(ReefConstants.kKilo_Reef);
 
-    // Add right reef poses to list
+    //add right reef poses to list
     rightReefPoses.add(ReefConstants.kBravo_Reef);
     rightReefPoses.add(ReefConstants.kDelta_Reef);
     rightReefPoses.add(ReefConstants.kFoxtrot_Reef);
@@ -95,8 +83,7 @@ public class AlignToReef extends Command {
     rightReefPoses.add(ReefConstants.kJuliet_Reef);
     rightReefPoses.add(ReefConstants.kLima_Reef);
 
-
-    // Add POV based left reef poses to list
+    //add POV based left reef poses to list
     POVBasedLeftReefPoses.add(ReefConstants.kAlpha_Reef);
     POVBasedLeftReefPoses.add(ReefConstants.kCharlie_Reef);
     POVBasedLeftReefPoses.add(ReefConstants.kFoxtrot_Reef);
@@ -104,143 +91,154 @@ public class AlignToReef extends Command {
     POVBasedLeftReefPoses.add(ReefConstants.kJuliet_Reef);
     POVBasedLeftReefPoses.add(ReefConstants.kKilo_Reef);
 
-    // Add POV based right reef poses to list
+    //add POV based right reef poses to list
     POVBasedRightReefPoses.add(ReefConstants.kBravo_Reef);
     POVBasedRightReefPoses.add(ReefConstants.kDelta_Reef);
     POVBasedRightReefPoses.add(ReefConstants.kEcho_Reef);
     POVBasedRightReefPoses.add(ReefConstants.kGolf_Reef);
     POVBasedRightReefPoses.add(ReefConstants.kIndia_Reef);
     POVBasedRightReefPoses.add(ReefConstants.kLima_Reef);
-
-
-    
   }
-  
-  
 
-  // Method to generate a path from the current robot pose to a waypoint
-  public Command getPathFromWaypoint(Pose2d waypoint){
-
-    // Generate waypoints from current robot pose to target waypoint
+  public Command getPathFromWaypoint(Pose2d waypoint) {
     List<Waypoint> waypoints = PathPlannerPath.waypointsFromPoses(
       new Pose2d(m_swerveSubsystem.getPose().getTranslation(), getPathVelocityHeading(m_swerveSubsystem.getFieldVelocity(), waypoint)),
       waypoint
     );
-    // Create path constraints
+
     PathConstraints pathConstraints = new PathConstraints(1.5, 3, 180, 360);
 
-    if (waypoints.get(0).anchor().getDistance(waypoints.get(1).anchor()) < 0.01) {
-      return 
+    if (waypoints.get(0).anchor().getDistance(waypoints.get(1).anchor()) <0.01) {
+      return
       Commands.sequence(
           Commands.print("start position PID loop"),
           PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2)),
-          Commands.print("end position PID loop")
+          Commands.print("end position PID loop")  
       );
-  }
+    }
 
-    // Create path from waypoints and constraints
     PathPlannerPath path = new PathPlannerPath(
-                                              waypoints,
-                                              pathConstraints,
-                                              new IdealStartingState(getVelociyMagnitude(m_swerveSubsystem.getFieldVelocity()), m_swerveSubsystem.getHeading()),
+                                              waypoints, 
+                                              pathConstraints, 
+                                              new IdealStartingState(getVelocityMagnitude(m_swerveSubsystem.getFieldVelocity()), m_swerveSubsystem.getHeading()),
                                               new GoalEndState(0.0, waypoint.getRotation()));
-                                              
-    // Prevent path flipping
+
     path.preventFlipping = true;
 
-    // Return command to follow path
     return (AutoBuilder.followPath(path).andThen(
             PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2))
             ))
-          .finallyDo((interupt) -> {
-            if (interupt) { //if this is false then the position pid would've X'ed the wheels & called the same method
-                m_swerveSubsystem.drive(new ChassisSpeeds(0,0,0));
-            }
-        });
+    .finallyDo((Interupt) -> {
+      if (Interupt) {
+        m_swerveSubsystem.drive(new ChassisSpeeds(0,0,0));
+      }
+    });
+  }
+  public Command getPathFromWaypointHP(Pose2d waypoint) {
+    List<Waypoint> waypoints = PathPlannerPath.waypointsFromPoses(
+      new Pose2d(m_swerveSubsystem.getPose().getTranslation(), getPathVelocityHeading(m_swerveSubsystem.getFieldVelocity(), waypoint)),
+      waypoint
+    );
+
+    PathConstraints pathConstraints = new PathConstraints(1.5, 3, 180, 360);
+
+    if (waypoints.get(0).anchor().getDistance(waypoints.get(1).anchor()) <0.01) {
+      return
+      Commands.sequence(
+          Commands.print("start position PID loop"),
+          PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2)),
+          Commands.print("end position PID loop")  
+      );
     }
 
-                                            
+    PathPlannerPath path = new PathPlannerPath(
+                                              waypoints, 
+                                              pathConstraints, 
+                                              new IdealStartingState(getVelocityMagnitude(m_swerveSubsystem.getFieldVelocity()), m_swerveSubsystem.getHeading()),
+                                              new GoalEndState(0.0, waypoint.getRotation()));
+
+    path.preventFlipping = true;
+
+    return (AutoBuilder.followPath(path))
+    ;
+  }
+
 
   // Method to get Velocity Magnitude from ChassisSpeeds
-  private LinearVelocity getVelociyMagnitude(ChassisSpeeds cs){
+  private LinearVelocity getVelocityMagnitude(ChassisSpeeds cs){
     return MetersPerSecond.of(new Translation2d(cs.vxMetersPerSecond, cs.vyMetersPerSecond).getNorm());
   
   }
 
   // Method to get the heading based on the current velocity of the robot
   private Rotation2d getPathVelocityHeading(ChassisSpeeds cs, Pose2d targetPose){
-    if (getVelociyMagnitude(cs).in(MetersPerSecond) < 0.25) { // If the robot is moving slower than 0.25 m/s, face the target
+    if (getVelocityMagnitude(cs).in(MetersPerSecond) < 0.25) { // If the robot is moving slower than 0.25 m/s, face the target
       var diff = targetPose.minus(m_swerveSubsystem.getPose()).getTranslation();
       return (diff.getNorm() < 0.01) ? targetPose.getRotation() : diff.getAngle(); // If the robot is within 1 cm of the target, keep the target rotation
     }
     return new Rotation2d(cs.vxMetersPerSecond, cs.vyMetersPerSecond);
   }
 
-  // Method to get the closest reef branch to the current robot pose
   private Pose2d getClosestBranch(Pose2d currentPose){
-    return currentPose.nearest(allReefPoses);
+  return currentPose.nearest(allReefPoses);
   }
 
-  // Method to get the closest left reef branch to the current robot pose
   private Pose2d getClosestLeftBranch(Pose2d currentPose){
     return currentPose.nearest(leftReefPoses);
   }
 
-  // Method to get the closest right reef branch to the current robot pose
   private Pose2d getClosestRightBranch(Pose2d currentPose){
     return currentPose.nearest(rightReefPoses);
   }
 
-  // Method to get the closest left reef branch based on POV
   private Pose2d getClosestPOVBasedLeftBranch(Pose2d currentPose){
     return currentPose.nearest(POVBasedLeftReefPoses);
   }
 
-  // Method to get the closest right reef branch based on POV
   private Pose2d getClosestPOVBasedRightBranch(Pose2d currentPose){
     return currentPose.nearest(POVBasedRightReefPoses);
   }
 
-  // Command to align to the closest reef branch
-  private Command AlignToTheClosestReefBranch(){
-    return Commands.defer(()-> {//Delay the calling of the command until the method is called/ button is pressed
+  public Command AlignToTheClosestReefBranch(){
+    return Commands.defer(()-> {
       return getPathFromWaypoint(getClosestBranch(m_swerveSubsystem.getPose()));
-    }, Set.of());
-  } 
-
-  // Command to align to the closest left reef branch
-  private Command AlignToTheClosestLeftReefBranch(){
-    return Commands.defer(()-> {//Delay the calling of the command until the method is called/ button is pressed
-      return getPathFromWaypoint(getClosestLeftBranch(m_swerveSubsystem.getPose()));
     }, Set.of());
   }
 
-  // Command to align to the closest right reef branch
+  private Command AlignToTheClosestLeftReefBranch(){
+    return Commands.defer(()->{
+    return getPathFromWaypoint(getClosestLeftBranch(m_swerveSubsystem.getPose()));
+    }, Set.of());
+  }
+
   private Command AlignToTheClosestRightReefBranch(){
-    return Commands.defer(()-> {//Delay the calling of the command until the method is called/ button is pressed
+    return Commands.defer(()->{
       return getPathFromWaypoint(getClosestRightBranch(m_swerveSubsystem.getPose()));
     }, Set.of());
   }
 
-  // Command to align to the closest left reef branch based on POV
   private Command AlignToTheClosestPOVBasedLeftReefBranch(){
-    return Commands.defer(()-> {//Delay the calling of the command until the method is called/ button is pressed
+    return Commands.defer(()->{
       return getPathFromWaypoint(getClosestPOVBasedLeftBranch(m_swerveSubsystem.getPose()));
     }, Set.of());
   }
 
-  // Command to align to the closest right reef branch based on POV
   private Command AlignToTheClosestPOVBasedRightReefBranch(){
-    return Commands.defer(()-> {//Delay the calling of the command until the method is called/ button is pressed
+    return Commands.defer(()->{
       return getPathFromWaypoint(getClosestPOVBasedRightBranch(m_swerveSubsystem.getPose()));
     }, Set.of());
   }
 
-  // Return Command based on what reef side is passed in
+  public Command AlignToLeftHP(){
+    return Commands.defer(()->{
+      return getPathFromWaypoint(new Pose2d(1.091,7.052,Rotation2d.fromDegrees(-55)));
+    }, Set.of());
+  }
+
   public Command AlignToTheClosestPOVBasedBranch(ReefSide side){
     switch (side) {
       case LEFT:
-        return AlignToTheClosestPOVBasedLeftReefBranch();
+        return AlignToTheClosestLeftReefBranch();
       case RIGHT:
         return AlignToTheClosestPOVBasedRightReefBranch();
       default:
@@ -248,7 +246,6 @@ public class AlignToReef extends Command {
     }
   }
 
-  // Return Command based on what reef side is passed in
   public Command AlignToTheClosestBranch(ReefSide side){
     switch (side) {
       case LEFT:
@@ -258,17 +255,7 @@ public class AlignToReef extends Command {
       default:
       return AlignToTheClosestRightReefBranch();
     }
-
-
   }
 
 
-
-
-
-  
-
-
 }
-
-

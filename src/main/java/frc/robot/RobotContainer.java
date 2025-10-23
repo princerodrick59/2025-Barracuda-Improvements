@@ -4,8 +4,9 @@
 
 package frc.robot;
 
+import static edu.wpi.first.units.Units.Rotation;
+
 import java.io.File;
-import java.util.Set;
 import java.util.function.DoubleSupplier;
 
 import org.littletonrobotics.junction.AutoLogOutput;
@@ -13,9 +14,12 @@ import org.littletonrobotics.junction.AutoLogOutput;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.RobotState;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -26,6 +30,7 @@ import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.WaitCommand;
+import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -59,6 +64,7 @@ import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.subsystems.EndEffectorSubsystem;
 import frc.robot.subsystems.LEDSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
+import swervelib.SwerveDrive;
 import swervelib.SwerveInputStream;
 
 /**
@@ -88,10 +94,6 @@ public class RobotContainer
     Reef_L
   }
 
-
-
-
-
   private ReefState reefStateValue = ReefState.Reef_A;
 
 
@@ -101,70 +103,33 @@ public class RobotContainer
   }
 
   private EjectMethod ejectMethodValue = EjectMethod.Normal_Eject;
-
-  
  
 
   // Controller definitions
-  CommandJoystick m_driverController = new CommandJoystick(0);
+  public CommandXboxController m_driverController = new CommandXboxController(0);
   CommandJoystick m_operatorController1 = new CommandJoystick(1);
   CommandJoystick m_operatorController2 = new CommandJoystick(2);
 
   // CommandXboxController m_operatorButtonBox = new CommandXboxController(2);
 
 
-  // private final Trigger DRIVER_A_BUTTON = new Trigger(() -> m_driverController.getHID().getAButton());
-  // private final Trigger DRIVER_B_BUTTON = new Trigger(() -> m_driverController.getHID().getBButton());
-  // private final Trigger DRIVER_X_BUTTON = new Trigger(() -> m_driverController.getHID().getXButton());
-  // private final Trigger DRIVER_Y_BUTTON = new Trigger(() -> m_driverController.getHID().getYButton());
-
-  // private final Trigger DRIVER_POV_UP = new Trigger(m_driverController.povUp());
-  // private final Trigger DRIVER_POV_DOWN = new Trigger(m_driverController.povDown());
-  // private final Trigger DRIVER_POV_LEFT = new Trigger(m_driverController.povLeft());
-  // private final Trigger DRIVER_POV_RIGHT = new Trigger(m_driverController.povRight());
-
-  // private final Trigger DRIVER_LEFT_TRIGGER = new Trigger(m_driverController.leftTrigger());
-  // private final Trigger DRIVER_RIGHT_TRIGGER = new Trigger(m_driverController.rightTrigger());
-  // private final Trigger DRIVER_LEFT_BUMPER = new Trigger(m_driverController.leftBumper());
-  // private final Trigger DRIVER_RIGHT_BUMPER = new Trigger(m_driverController.rightBumper());
-
-
-  private final double DRIVER_LEFT_X_AXIS = m_driverController.getRawAxis(0);
-  private final double DRIVER_LEFT_Y_AXIS = m_driverController.getRawAxis(1);
-
-  private final double DRIVER_RIGHT_X_AXIS = m_driverController.getRawAxis(4);
-  private final double DRIVER_RIGHT_Y_AXIS = m_driverController.getRawAxis(5);
-
-  private final Trigger DRIVER_A_BUTTON = new Trigger(() -> m_driverController.getHID().getRawButton(1));
-  private final Trigger DRIVER_B_BUTTON = new Trigger(() -> m_driverController.getHID().getRawButton(2));
-  private final Trigger DRIVER_X_BUTTON = new Trigger(() -> m_driverController.getHID().getRawButton(3));
-  private final Trigger DRIVER_Y_BUTTON = new Trigger(() -> m_driverController.getHID().getRawButton(4));
+  private final Trigger DRIVER_A_BUTTON = new Trigger(() -> m_driverController.getHID().getAButton());
+  private final Trigger DRIVER_B_BUTTON = new Trigger(() -> m_driverController.getHID().getBButton());
+  private final Trigger DRIVER_X_BUTTON = new Trigger(() -> m_driverController.getHID().getXButton());
+  private final Trigger DRIVER_Y_BUTTON = new Trigger(() -> m_driverController.getHID().getYButton());
 
   private final Trigger DRIVER_POV_UP = new Trigger(m_driverController.povUp());
   private final Trigger DRIVER_POV_DOWN = new Trigger(m_driverController.povDown());
   private final Trigger DRIVER_POV_LEFT = new Trigger(m_driverController.povLeft());
   private final Trigger DRIVER_POV_RIGHT = new Trigger(m_driverController.povRight());
 
-  private final Trigger DRIVER_LEFT_TRIGGER = new Trigger(m_driverController.axisGreaterThan(2, 0.25));
-  private final Trigger DRIVER_RIGHT_TRIGGER = new Trigger(m_driverController.axisGreaterThan(3, 0.25));
-
-  private final Trigger DRIVER_LEFT_BUMPER = new Trigger(() -> m_driverController.getHID().getRawButton(5));
-  private final Trigger DRIVER_RIGHT_BUMPER = new Trigger(() -> m_driverController.getHID().getRawButton(6));
-
-  private final Trigger DRIVER_START_BUTTON = new Trigger(() -> m_driverController.getHID().getRawButton(8));
-  private final Trigger DRIVER_BACK_BUTTON = new Trigger(() -> m_driverController.getHID().getRawButton(7));
-
-  private final Trigger DRIVER_M1_BUMPER = new Trigger(() -> m_driverController.getHID().getRawButton(0)); //TODO:
-  private final Trigger DRIVER_M2_BUMPER = new Trigger(() -> m_driverController.getHID().getRawButton(0)); //TODO:
-
-  private final Trigger DRIVER_M3_LEFT_UP_PADDLE = new Trigger(() -> m_driverController.getHID().getRawButton(0)); //TODO:
-  private final Trigger DRIVER_M5_LEFT_DOWN_PADDLE = new Trigger(() -> m_driverController.getHID().getRawButton(0)); //TODO:
-
-  private final Trigger DRIVER_M4_RIGHT_UP_PADDLE = new Trigger(() -> m_driverController.getHID().getRawButton(0)); //TODO:
-  private final Trigger DRIVER_M6_RIGHT_DOWN_PADDLE = new Trigger(() -> m_driverController.getHID().getRawButton(0)); //TODO:
+  private final Trigger DRIVER_LEFT_TRIGGER = new Trigger(m_driverController.leftTrigger());
+  private final Trigger DRIVER_RIGHT_TRIGGER = new Trigger(m_driverController.rightTrigger());
+  private final Trigger DRIVER_LEFT_BUMPER = new Trigger(m_driverController.leftBumper());
+  private final Trigger DRIVER_RIGHT_BUMPER = new Trigger(m_driverController.rightBumper());
 
 
-
+  // Mirror Autos
 
 
 
@@ -229,17 +194,15 @@ public class RobotContainer
 
   CLIMB_CMD m_climb_CMD = new CLIMB_CMD(m_elevatorSubsystem, m_endEffectorSubsystem);
 
-  AlignToReef m_alignToReef = new AlignToReef(m_swerveSubsystem);
-
   
 
   /**
    * Converts driver input into a field-relative ChassisSpeeds that is controlled by angular velocity.
    */
   SwerveInputStream driveAngularVelocity = SwerveInputStream.of(m_swerveSubsystem.getSwerveDrive(),
-                                                                () -> DRIVER_LEFT_Y_AXIS * -1,
-                                                                () -> DRIVER_LEFT_X_AXIS * -1)
-                                                            .withControllerRotationAxis(() -> DRIVER_RIGHT_X_AXIS * -1)
+                                                                () -> m_driverController.getLeftY() * -1,
+                                                                () -> m_driverController.getLeftX() * -1)
+                                                            .withControllerRotationAxis(() -> m_driverController.getRightX() * -1)
                                                             .deadband(OperatorConstants.kDeadband)
                                                             .scaleTranslation(SpeedConstants.kNormalRobotTranslationSpeed)
                                                             .scaleRotation(SpeedConstants.kNormalRobotRotationSpeed)
@@ -252,18 +215,18 @@ public class RobotContainer
   //   return false; // Adjust logic as needed for the trigger condition
   // });
   SwerveInputStream driveAngularVelocity_SLOW = SwerveInputStream.of(m_swerveSubsystem.getSwerveDrive(),
-                                                                ()-> DRIVER_LEFT_Y_AXIS * -1,
-                                                                () -> DRIVER_LEFT_X_AXIS * -1)
-                                                            .withControllerRotationAxis(() -> DRIVER_RIGHT_X_AXIS * -1)
+                                                                () -> m_driverController.getLeftY() * -1,
+                                                                () -> m_driverController.getLeftX() * -1)
+                                                            .withControllerRotationAxis(() -> m_driverController.getRightX() * -1)
                                                             .deadband(OperatorConstants.kDeadband)
                                                             .scaleTranslation(0.25)
                                                             .scaleRotation(0.25)
                                                             .allianceRelativeControl(true);
 
     SwerveInputStream driveAngularVelocity_Elevator_Creep = SwerveInputStream.of(m_swerveSubsystem.getSwerveDrive(),
-                                                                () -> DRIVER_LEFT_Y_AXIS * -1,
-                                                                () -> DRIVER_RIGHT_Y_AXIS * -1)
-                                                            .withControllerRotationAxis(() -> DRIVER_RIGHT_X_AXIS * -1)
+                                                                () -> m_driverController.getLeftY() * -1,
+                                                                () -> m_driverController.getLeftX() * -1)
+                                                            .withControllerRotationAxis(() -> m_driverController.getRightX() * -1)
                                                             .deadband(OperatorConstants.kDeadband)
                                                             .scaleTranslation(0.1)
                                                             .scaleRotation(0.1)
@@ -273,9 +236,9 @@ public class RobotContainer
   /**
    * Clone's the angular velocity input stream and converts it to a fieldRelative input stream.
    */
-  // SwerveInputStream driveDirectAngle = driveAngularVelocity.copy().withControllerHeadingAxis(m_driverController::getRightX,
-  //                                                                                            m_driverController::getRightY)
-  //                                                          .headingWhile(true);
+  SwerveInputStream driveDirectAngle = driveAngularVelocity.copy().withControllerHeadingAxis(m_driverController::getRightX,
+                                                                                             m_driverController::getRightY)
+                                                           .headingWhile(true);
 
   SwerveInputStream driveRobotOriented = SwerveInputStream.of(m_swerveSubsystem.getSwerveDrive(),
                                                             getYAxisPOV(),
@@ -286,6 +249,9 @@ public class RobotContainer
                                                             .robotRelative(true); 
 
   L4_CMD m_L4_CMD_AUTO = new L4_CMD(m_elevatorSubsystem, m_endEffectorSubsystem); 
+
+
+  AlignToReef m_alignToReef = new AlignToReef(m_swerveSubsystem);
 
   // Trigger m_elevatorCreep_CMD = new Trigger(()-> m_elevatorSubsystem.getElevatorPositionRotations() > SetpointConstants.kL2ElevatorSetpoint);
 
@@ -342,12 +308,20 @@ public class RobotContainer
                                                         new HP_EE_Intake_Sequence(m_elevatorSubsystem, m_endEffectorSubsystem).until(()->m_endEffectorSubsystem.hasCoral())
                                                       ));
 
+  NamedCommands.registerCommand("Wait 0.5 sec then EE_Intake", new WaitCommand(0.75)
+  .andThen(
+                                                      new HP_EE_Intake_Sequence(m_elevatorSubsystem, m_endEffectorSubsystem).until(()->m_endEffectorSubsystem.hasCoral())
+                                                    ));
+    
+    NamedCommands.registerCommand("alignClosestRightReef", new AlignToReef(m_swerveSubsystem).AlignToTheClosestBranch(ReefSide.RIGHT));
+    NamedCommands.registerCommand("alignClosestLeftReef", new AlignToReef(m_swerveSubsystem).AlignToTheClosestBranch(ReefSide.LEFT));                                               
+
     // driveAngularVelocity.scaleTranslation(speedChooser.getSelected());
 
     NamedCommands.registerCommand("DA2", new ParallelCommandGroup(
       new REEF_CMD(m_elevatorSubsystem, m_endEffectorSubsystem, SetpointConstants.kEndEffectorL2AlgaeRemovalSetpoint, SetpointConstants.kElevatorL2AlgaeRemovalSetpoint),
       new EndEffectorManualIntake(m_endEffectorSubsystem)
-    ));
+    ).withTimeout(1));
 
 
 
@@ -394,6 +368,26 @@ public class RobotContainer
 
 
 
+  private Command getDesiredReefState(){
+    return 
+    switch (reefStateValue) {
+      case Reef_A -> m_swerveSubsystem.drive_To_Reef_A();
+      case Reef_B -> m_swerveSubsystem.drive_To_Reef_B();
+      case Reef_C -> m_swerveSubsystem.drive_To_Reef_C();
+      case Reef_D -> m_swerveSubsystem.drive_To_Reef_D();
+      case Reef_E -> m_swerveSubsystem.drive_To_Reef_E();
+      case Reef_F -> m_swerveSubsystem.drive_To_Reef_F();
+      case Reef_G -> m_swerveSubsystem.drive_To_Reef_G();
+      case Reef_H -> m_swerveSubsystem.drive_To_Reef_H();
+      case Reef_I -> m_swerveSubsystem.drive_To_Reef_I();
+      case Reef_J -> m_swerveSubsystem.drive_To_Reef_J();
+      case Reef_K -> m_swerveSubsystem.drive_To_Reef_K();
+      case Reef_L -> m_swerveSubsystem.drive_To_Reef_L();
+    };
+  }
+
+
+
   @AutoLogOutput(key = "General/ReefState")
   private String getReefStateString(){
     return reefStateValue.toString();
@@ -412,10 +406,6 @@ public class RobotContainer
     driveAngularVelocity.scaleTranslation(speedChooser.getSelected());
   }
 
-
-
-
-
    
 
 
@@ -426,10 +416,15 @@ public class RobotContainer
   private void configureBindings()
   {
 
-    // Command driveFieldOrientedDirectAngle = m_swerveSubsystem.driveFieldOriented(driveDirectAngle);
+    Command driveFieldOrientedDirectAngle = m_swerveSubsystem.driveFieldOriented(driveDirectAngle);
     Command driveFieldOrientedAnglularVelocity = m_swerveSubsystem.driveFieldOriented(driveAngularVelocity); 
     Command driveRobotOrientedNudge = m_swerveSubsystem.driveFieldOriented(driveRobotOriented);
     Command driveFieldOrientedAnglularVelocity_SLOW = m_swerveSubsystem.driveFieldOriented(driveAngularVelocity_SLOW);
+    // if(RobotState.isTeleop()){
+    //   Command driveFieldOrientedAnglularVelocity_Elevator_Creep = m_swerveSubsystem.driveFieldOriented(driveAngularVelocity_Elevator_Creep);
+    //   Trigger m_Elevator_Creep = new Trigger(()-> m_elevatorSubsystem.getElevatorPositionRotations() > SetpointConstants.kL2ElevatorSetpoint);
+    //     m_Elevator_Creep.whileTrue(driveFieldOrientedAnglularVelocity_Elevator_Creep);
+    // }
     
 
 
@@ -456,25 +451,31 @@ public class RobotContainer
     {
 
 
+      // m_driverController.rightStick().onTrue(m_alignToReef.getPathFromWaypoint(new Pose2d(0.917,0.622,Rotation2d.fromDegrees(-120))));
+
      
       
     // Driver Controls
 
+      DRIVER_A_BUTTON.onTrue(
+        Commands.runOnce(m_swerveSubsystem :: zeroGyroWithAlliance)
+      );
+
       // DRIVER_A_BUTTON.onTrue(
-      //   Commands.runOnce(m_swerveSubsystem :: zeroGyroWithAlliance)
+      //   m_swerveSubsystem.drive_To_Reef_A()
       // );
-
-
-
-
-      m_driverController.button(0).whileTrue(
-        m_alignToReef.AlignToTheClosestBranch(ReefSide.LEFT)
-      );
-
-      m_driverController.button(1).whileTrue(
-        m_alignToReef.AlignToTheClosestBranch(ReefSide.RIGHT)
-      );
       
+      // Driver Elevator Stow
+      // DRIVER_B_BUTTON.whileTrue(
+      //   Commands.run(() -> {
+      //     m_endEffectorStow.schedule();
+      //   })
+      // ).whileFalse(
+      //   Commands.runOnce(() -> {
+      //     m_endEffectorStow.cancel();
+      //   })
+      // );
+      DRIVER_B_BUTTON.whileTrue(m_alignToReef.AlignToLeftHP());
 
       DRIVER_POV_RIGHT.whileTrue(
         Commands.runOnce(() -> {
@@ -513,11 +514,13 @@ public class RobotContainer
 
 
 
-      DRIVER_RIGHT_TRIGGER.whileTrue(m_endEffectorManualOuttake);
+      // DRIVER_RIGHT_TRIGGER.whileTrue(m_endEffectorManualOuttake);
 
-      DRIVER_RIGHT_BUMPER.whileTrue(Commands.runOnce(()->getDesiredOuttakeCMD().schedule())).whileFalse(Commands.runOnce(()->getDesiredOuttakeCMD().cancel()));
+      // DRIVER_RIGHT_BUMPER.whileTrue(Commands.runOnce(()->getDesiredOuttakeCMD().schedule())).whileFalse(Commands.runOnce(()->getDesiredOuttakeCMD().cancel()));
 
+        DRIVER_RIGHT_BUMPER.whileTrue(m_alignToReef.AlignToTheClosestBranch(ReefSide.RIGHT));
 
+        DRIVER_RIGHT_TRIGGER.whileTrue(Commands.runOnce(()->getDesiredOuttakeCMD().schedule())).whileFalse(Commands.runOnce(()->getDesiredOuttakeCMD().cancel()));
 
       
 
@@ -529,13 +532,16 @@ public class RobotContainer
       
       
       // Climber Commands
-      DRIVER_START_BUTTON.whileTrue(m_climberManualUp);
+      m_driverController.start().whileTrue(m_climberManualUp);
       m_operatorController2.button(10).whileTrue(m_climberManualDown);
-      DRIVER_BACK_BUTTON.whileTrue(m_climberManualDown);
+      m_driverController.back().whileTrue(m_climberManualDown);
 
 
 
-      DRIVER_LEFT_BUMPER.whileTrue(driveFieldOrientedAnglularVelocity_SLOW);
+      DRIVER_LEFT_BUMPER.whileTrue(
+        m_alignToReef.AlignToTheClosestBranch(ReefSide.LEFT)
+        /*driveFieldOrientedAnglularVelocity_SLOW*/
+        );
 
 
 
@@ -706,7 +712,79 @@ public class RobotContainer
             m_endEffectorStow.schedule();
           })
         );
-   
+
+
+
+
+
+
+
+
+      // Reef States
+      m_operatorController1.button(8).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_A;
+          }));
+      
+      m_operatorController1.button(9).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_B;
+          }));
+
+      m_operatorController2.button(4).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_C;
+          }));
+      
+      m_operatorController2.button(3).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_D;
+          }));
+          
+      m_operatorController1.button(5).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_E;
+          }));
+
+      m_operatorController2.button(1).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_F;
+          }));
+        
+      m_operatorController1.button(7).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_G;
+          }));
+      
+      m_operatorController1.button(4).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_H;
+          }));
+        
+      m_operatorController1.button(11).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_I;
+          }));
+        
+      m_operatorController2.button(6).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_J;
+          }));
+        
+      m_operatorController2.button(9).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_K;
+          }));
+
+      m_operatorController2.button(5).onTrue(
+          new InstantCommand(()->{
+            reefStateValue = reefStateValue.Reef_L;
+          }));
+
+
+
+ 
+      
   }
 
 

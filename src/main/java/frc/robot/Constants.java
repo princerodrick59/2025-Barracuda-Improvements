@@ -4,7 +4,8 @@
 
 package frc.robot;
 
-import java.util.ArrayList;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
@@ -219,13 +220,7 @@ public final class Constants
     public static final double kEndEffectorHPIntakeSetpoint = 0.646;
     public static final double kElevatorHPIntakeSetpoint = 5;
 
-
-
-
     public static final double kSetpointThreshold = 0.25;
-
-
-    
   }
 
   public static class VisionConstants {
@@ -235,8 +230,7 @@ public final class Constants
     public static final Matrix<N3, N1> kSingleTagStdDevsMT1 = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, 4);
     public static final Matrix<N3, N1> kMultiTagStdDevsMT1 = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, 3);
 
-    public static final Matrix<N3, N1> kReefStdDevs = VecBuilder.fill(0.01,0.01, Double.MAX_VALUE);
-    
+    public static final Matrix<N3, N1> kReefStdDevs = VecBuilder.fill(0.01, 0.01, Double.MAX_VALUE);
   }
 
   public static class ReefConstants {
@@ -257,8 +251,12 @@ public final class Constants
 
     public static final Pose2d kKilo_Reef = new Pose2d(4.082, 5.226, Rotation2d.fromDegrees(300));
     public static final Pose2d kLima_Reef = new Pose2d(3.802, 5.064, Rotation2d.fromDegrees(300));
+  }
 
- 
+  public static class AutoAlignConstants {
+    public static final PPHolonomicDriveController kAutoAlignController = new PPHolonomicDriveController(
+      new PIDConstants(1, 0, 0),
+      new PIDConstants(1, 0, 0));
   }
 
   public static class LEDConstants {
