@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.littletonrobotics.junction.AutoLogOutput;
+
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.path.GoalEndState;
 import com.pathplanner.lib.path.IdealStartingState;
@@ -54,6 +56,8 @@ public class AlignToReef extends Command {
   }
 
   public ReefLevel desiredLevel = ReefLevel.STOW;
+
+  private boolean isAutoAdjustActive = false;
 
   public ArrayList<Pose2d> allReefPoses = new ArrayList<Pose2d>();
   public ArrayList<Pose2d> leftReefPoses = new ArrayList<Pose2d>();
@@ -118,53 +122,67 @@ public class AlignToReef extends Command {
     POVBasedRightReefPoses.add(ReefConstants.kIndia_Reef);
     POVBasedRightReefPoses.add(ReefConstants.kLima_Reef);
   }
-
+  /**
+   * Method to generate a command to follow a path to a waypoint | 
+   * Auto adjusts to the waypoint upon arrival | 
+   * Auto adjusts override if within 0.25 meters of waypoint | 
+   * Moves elevator to desired reef level if within 1 meter of waypoint | 
+   * @param waypoint The target waypoint to align to
+   * @return Command to follow the path to the waypoint
+   */
   public Command getPathFromWaypoint(Pose2d waypoint) {
+    // Create waypoints for pathplanner path
     List<Waypoint> waypoints = PathPlannerPath.waypointsFromPoses(
       new Pose2d(m_swerveSubsystem.getPose().getTranslation(), getPathVelocityHeading(m_swerveSubsystem.getFieldVelocity(), waypoint)),
       waypoint
     );
-
+    
+    // Create path constraints
     PathConstraints pathConstraints = new PathConstraints(1.5, 3, 180, 360);
 
-    // if (waypoints.get(0).anchor().getDistance(waypoints.get(1).anchor()) <0.01) {
-    //   return
-    //   Commands.sequence(
-    //       Commands.print("start position PID loop"),
-    //       PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2)),
-    //       Commands.print("end position PID loop")  
-    //   );
-    // }
-
+    // Create pathplanner path
     PathPlannerPath path = new PathPlannerPath(
                                               waypoints, 
                                               pathConstraints, 
                                               new IdealStartingState(getVelocityMagnitude(m_swerveSubsystem.getFieldVelocity()), m_swerveSubsystem.getHeading()),
                                               new GoalEndState(0.0, waypoint.getRotation()));
 
-    path.preventFlipping = true;
 
+    path.preventFlipping = true;
+    // Build and return command
     return (AutoBuilder.followPath(path)
             .andThen(
-                    PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2))))
+                    // Auto Adjust after reaching the waypoint
+                    PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2),this)))
             .alongWith(
-                    
-                    PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2))
+                    // Auto adjust override if closer than 0.25 meters to waypoint
+                    PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2),this)
+                    //Print Starting
                     .beforeStarting(Commands.print("Starting final approach PID"))
+                    //Print Ending
                     .andThen(Commands.print("Ending final approach PID"))
+
                     .onlyIf(
+                            // Condition to only run if within 0.25 meters of waypoint
                             ()-> m_swerveSubsystem.getPose().getTranslation().getDistance(waypoints.get(1).anchor()) < 0.25)
+                            // Run repeatedly to check condition
                             .repeatedly())
                     
             .alongWith(
+                    // Command to move elevator to desired reef level if closer than 1 meter to waypoint
                     getDesiredReefCommand(desiredLevel)
+                    //Print Starting
                     .beforeStarting(Commands.print("Moving to " + desiredLevel.toString() + " Reef Position"))
+
                     .onlyIf(
+                            // Condition to only run if within 1 meter of waypoint
                             ()-> m_swerveSubsystem.getPose().getTranslation().getDistance(waypoints.get(1).anchor()) < 1)
+                            // Run repeatedly to check condition
                             .repeatedly())
-                    
+            // Until interrupted
             .finallyDo((Interupt) -> {
               if (Interupt) {
+                // Stop the robot if interrupted
                 m_swerveSubsystem.drive(new ChassisSpeeds(0,0,0));
               }
     });
@@ -254,6 +272,15 @@ public class AlignToReef extends Command {
         return Commands.none();    
     }
   } 
+
+  public Command setAutoAdjustActive(boolean isActive){
+    return Commands.runOnce(()-> isAutoAdjustActive = isActive);
+  }
+
+  @AutoLogOutput
+  public boolean getIsAutoAdjustActive(){
+    return isAutoAdjustActive;
+  }
 
 
 }

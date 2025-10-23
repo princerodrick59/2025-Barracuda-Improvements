@@ -30,7 +30,8 @@ import frc.robot.subsystems.SwerveSubsystem;
 /* You should consider using the more terse Command factories API instead https://docs.wpilib.org/en/stable/docs/software/commandbased/organizing-command-based.html#defining-commands */
 public class PositionPIDCommand extends Command {
   /** Creates a new PositionPIDCommand. */
-  public SwerveSubsystem m_swerveSubsystem;
+  private SwerveSubsystem m_swerveSubsystem;
+  private AlignToReef m_alignToReef;
 
   public final Pose2d m_targetPose;
   private PPHolonomicDriveController m_driverController = Constants.AutoAlignConstants.kAutoAlignController;
@@ -39,15 +40,18 @@ public class PositionPIDCommand extends Command {
 
   private final Debouncer endTriggerDebouncer = new Debouncer(0.04);
 
-  private PositionPIDCommand(SwerveSubsystem swerveSubsystem, Pose2d targetPose) {
+  private PositionPIDCommand(SwerveSubsystem swerveSubsystem, Pose2d targetPose, AlignToReef alignToReef) {
     m_swerveSubsystem = swerveSubsystem;
     m_targetPose = targetPose;
+    m_alignToReef = alignToReef;
 
   }
 
-  public static Command generateCommand(SwerveSubsystem swerveSubsystem, Pose2d targetPose, Time timeout) {
-    return new PositionPIDCommand(swerveSubsystem, targetPose)
+  public static Command generateCommand(SwerveSubsystem swerveSubsystem, Pose2d targetPose, Time timeout, AlignToReef kAlignToReef) {
+    return new PositionPIDCommand(swerveSubsystem, targetPose, kAlignToReef)
         .withTimeout(timeout)
+        .beforeStarting(kAlignToReef.setAutoAdjustActive(true))
+        .andThen(kAlignToReef.setAutoAdjustActive(false))
         .finallyDo(() -> {
           swerveSubsystem.drive(new ChassisSpeeds(0,0,0));
           swerveSubsystem.lock();
@@ -109,6 +113,7 @@ public class PositionPIDCommand extends Command {
     return endTriggerDebouncer.calculate(
       rotation && position
     );
+
 
     
   }
