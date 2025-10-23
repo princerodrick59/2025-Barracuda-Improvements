@@ -452,8 +452,6 @@ public class RobotContainer
     {
 
 
-      // m_driverController.rightStick().onTrue(m_alignToReef.getPathFromWaypoint(new Pose2d(0.917,0.622,Rotation2d.fromDegrees(-120))));
-
      
       
     // Driver Controls
@@ -462,6 +460,7 @@ public class RobotContainer
       DRIVER_B_BUTTON.onTrue(m_alignToReef.setDesiredReefLevel(ReefLevel.L2));
       DRIVER_X_BUTTON.onTrue(m_alignToReef.setDesiredReefLevel(ReefLevel.L3));
       DRIVER_Y_BUTTON.onTrue(m_alignToReef.setDesiredReefLevel(ReefLevel.L4));
+
 
       DRIVER_POV_RIGHT.whileTrue(
         Commands.runOnce(() -> {
