@@ -79,8 +79,6 @@ public class PositionPIDCommand extends Command {
   }
 
 
-  // Logger.recordOutput("Auto Adjust X Error", m_swerveSubsystem.getPose().getX()-targetPose.getX());
-  // Logger.recordOutput("Auto Adjust Y Error", m_swerveSubsystem.getPose().getY()-targetPose.getY());
   // Called once the command ends or is interrupted.
   @Override
   public void end(boolean interrupted) {

@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.littletonrobotics.junction.AutoLogOutput;
+import org.littletonrobotics.junction.Logger;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.path.GoalEndState;
@@ -83,8 +84,6 @@ public class AlignToReef extends Command {
 
   private ReefLevel desiredLevel = ReefLevel.STOW;
 
-
-
   private boolean isAutoAdjustActive = false;
 
   private ArrayList<Pose2d> allReefPoses = new ArrayList<Pose2d>();
@@ -92,6 +91,8 @@ public class AlignToReef extends Command {
   private ArrayList<Pose2d> rightReefPoses = new ArrayList<Pose2d>();
   private ArrayList<Pose2d> POVBasedLeftReefPoses = new ArrayList<Pose2d>();
   private ArrayList<Pose2d> POVBasedRightReefPoses = new ArrayList<Pose2d>();
+
+  private Pose2d m_targetPose = new Pose2d();
 
 
 
@@ -176,6 +177,13 @@ public class AlignToReef extends Command {
 
 
     path.preventFlipping = true;
+    
+    // Logger.recordOutput("Commands/AlignToReef/Auto Adjust X Error", m_swerveSubsystem.getPose().getX() - waypoint.getX());
+    // Logger.recordOutput("Commands/AlignToReef/Auto Adjust Y Error", m_swerveSubsystem.getPose().getY() - waypoint.getY());
+    // Logger.recordOutput("Commands/AlignToReef/Auto Adjust ROT Error", m_swerveSubsystem.getPose().getRotation().getDegrees() - waypoint.getRotation().getDegrees());
+  
+    m_targetPose = waypoint;
+
     // Build and return command
     return (AutoBuilder.followPath(path)
             .andThen(
@@ -439,13 +447,27 @@ public class AlignToReef extends Command {
     return Commands.runOnce(()-> isAutoAdjustActive = isActive);
   }
 
-  @AutoLogOutput
+  @AutoLogOutput (key = "Commands/AlignToReef/AutoAdjustActive")
   /**
    * Method to get the auto adjust active state
    * @return boolean of the auto adjust active state
    */
   public boolean getIsAutoAdjustActive(){
     return isAutoAdjustActive;
+  }
+  @AutoLogOutput (key = "Commands/AlignToReef/TargetPoseXError")
+  public double getTargetPoseXError(){
+    return m_swerveSubsystem.getPose().getX() - m_targetPose.getX();
+  }
+
+  @AutoLogOutput (key = "Commands/AlignToReef/TargetPoseYError")
+  public double getTargetPoseYError(){
+    return m_swerveSubsystem.getPose().getY() - m_targetPose.getY();
+  }
+
+  @AutoLogOutput (key = "Commands/AlignToReef/TargetRotationError")
+  public double getTargetRotationError(){
+    return m_swerveSubsystem.getPose().getRotation().getDegrees() - m_targetPose.getRotation().getDegrees();
   }
 
 
