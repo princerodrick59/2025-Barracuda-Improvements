@@ -29,6 +29,7 @@ import edu.wpi.first.units.CurrentUnit;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.ReefConstants;
 import frc.robot.commands.Sequential.Reef.L1_CMD;
 import frc.robot.commands.Sequential.Reef.L3_CMD;
@@ -93,6 +94,8 @@ public class AlignToReef extends Command {
   private ArrayList<Pose2d> POVBasedRightReefPoses = new ArrayList<Pose2d>();
 
   private Pose2d m_targetPose = new Pose2d();
+
+  private CommandXboxController m_driverController = new CommandXboxController(0);
 
 
 
@@ -178,9 +181,7 @@ public class AlignToReef extends Command {
 
     path.preventFlipping = true;
     
-    // Logger.recordOutput("Commands/AlignToReef/Auto Adjust X Error", m_swerveSubsystem.getPose().getX() - waypoint.getX());
-    // Logger.recordOutput("Commands/AlignToReef/Auto Adjust Y Error", m_swerveSubsystem.getPose().getY() - waypoint.getY());
-    // Logger.recordOutput("Commands/AlignToReef/Auto Adjust ROT Error", m_swerveSubsystem.getPose().getRotation().getDegrees() - waypoint.getRotation().getDegrees());
+  
   
     m_targetPose = waypoint;
 
@@ -189,31 +190,35 @@ public class AlignToReef extends Command {
             .andThen(
                     // Auto Adjust after reaching the waypoint
                     PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2),this)))
-            .alongWith(
-                    // Auto adjust override if closer than 0.25 meters to waypoint
-                    PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2),this)
-                    //Print Starting
-                    .beforeStarting(Commands.print("Starting final approach PID"))
-                    //Print Ending
-                    .andThen(Commands.print("Ending final approach PID"))
 
-                    .onlyIf(
-                            // Condition to only run if within 0.25 meters of waypoint
-                            ()-> m_swerveSubsystem.getPose().getTranslation().getDistance(waypoints.get(1).anchor()) < 0.25)
-                            // Run repeatedly to check condition
-                            .repeatedly())
+
+            .alongWith(
+
+
+                    Commands.waitUntil(
+                                      ()-> m_swerveSubsystem.getPose().getTranslation().getDistance(waypoints.get(1).anchor()) < 1)
+                  
+                                      .andThen(
+                                                // Auto adjust override if closer than 0.25 meters to waypoint
+                                                PositionPIDCommand.generateCommand(m_swerveSubsystem, waypoint, Seconds.of(2),this)
+
+                                                //Print Starting
+                                                .beforeStarting(Commands.print("Starting final approach PID"))
+                                                //Print Ending
+                                                .andThen(Commands.print("Ending final approach PID"))
+                                      ))
                     
             .alongWith(
-                    // Command to move elevator to desired reef level if closer than 1 meter to waypoint
-                    getDesiredReefCommand(desiredLevel)
-                    //Print Starting
-                    .beforeStarting(Commands.print("Moving to " + desiredLevel.toString() + " Reef Position"))
+                    Commands.waitUntil(
+                                      ()-> m_swerveSubsystem.getPose().getTranslation().getDistance(waypoints.get(1).anchor()) < 1)
+                  
+                                      .andThen(
+                                              // Command to move elevator to desired reef level if closer than 1 meter to waypoint
+                                              getDesiredReefCommand(desiredLevel)
 
-                    .onlyIf(
-                            // Condition to only run if within 1 meter of waypoint
-                            ()-> m_swerveSubsystem.getPose().getTranslation().getDistance(waypoints.get(1).anchor()) < 1)
-                            // Run repeatedly to check condition
-                            .repeatedly())
+                                              .beforeStarting(Commands.print("Moving to " + desiredLevel.toString() + " Reef Position"))
+                                      )
+                            )
             // Until interrupted
             .finallyDo((Interupt) -> {
               if (Interupt) {
@@ -372,15 +377,6 @@ public class AlignToReef extends Command {
     }, Set.of());
   }
 
-  /**
-   * Method to align to the right HP
-   * @return Command to align to the HP
-   */
-  public Command AlignToLeftHP(){
-    return Commands.defer(()->{
-      return getPathFromWaypoint(new Pose2d(1.091,7.052,Rotation2d.fromDegrees(-55)));
-    }, Set.of());
-  }
 
     /**
    * Method to align to the closest reef branch
@@ -426,13 +422,13 @@ public class AlignToReef extends Command {
   private Command getDesiredReefCommand(ReefLevel level){
     switch (level) {
       case L1:
-        return new L1_CMD(m_elevatorSubsystem, m_endEffectorSubsystem);
+        return new L1_CMD(m_elevatorSubsystem, m_endEffectorSubsystem).until(()->m_driverController.leftTrigger().getAsBoolean());
       case L2:
-        return new L3_CMD(m_elevatorSubsystem, m_endEffectorSubsystem);
+        return new L3_CMD(m_elevatorSubsystem, m_endEffectorSubsystem).until(()->m_driverController.leftTrigger().getAsBoolean());
       case L3:
-        return new L3_CMD(m_elevatorSubsystem, m_endEffectorSubsystem);
+        return new L3_CMD(m_elevatorSubsystem, m_endEffectorSubsystem).until(()->m_driverController.leftTrigger().getAsBoolean());
       case L4:
-        return new L3_CMD(m_elevatorSubsystem, m_endEffectorSubsystem);
+        return new L3_CMD(m_elevatorSubsystem, m_endEffectorSubsystem).until(()->m_driverController.leftTrigger().getAsBoolean());
       default:
         return Commands.none();    
     }
@@ -447,11 +443,12 @@ public class AlignToReef extends Command {
     return Commands.runOnce(()-> isAutoAdjustActive = isActive);
   }
 
-  @AutoLogOutput (key = "Commands/AlignToReef/AutoAdjustActive")
+  
   /**
    * Method to get the auto adjust active state
    * @return boolean of the auto adjust active state
    */
+  @AutoLogOutput (key = "Commands/AlignToReef/AutoAdjustActive")
   public boolean getIsAutoAdjustActive(){
     return isAutoAdjustActive;
   }

@@ -10,6 +10,7 @@ import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
 import frc.robot.Constants.EndEffectorConstants;
 import frc.robot.Constants.SetpointConstants;
+import frc.robot.commands.Manual.Elevator.ElevatorManualDown;
 import frc.robot.commands.Setpoints_CMD.Elevator_Setpoint_CMD;
 import frc.robot.commands.Setpoints_CMD.EndEffector_Setpoint_CMD;
 
@@ -32,8 +33,11 @@ public class HP_EE_Intake_Sequence_Reverse extends SequentialCommandGroup {
 
     addCommands(
     new ParallelCommandGroup(
+                new ElevatorManualDown(m_elevatorSubsystem).until(()->m_elevatorSubsystem.isAtBottomLimit()),
                 m_endEffectorSubsystem.intakeWithCurrent(),
                  new EndEffector_Setpoint_CMD(m_endEffectorSubsystem, 0.397),
-                 new WaitUntilCommand(()->m_endEffectorSubsystem.endEffectorIntake.getStatorCurrent().getValueAsDouble() > EndEffectorConstants.kEndEffectorCurrentSpike).andThen(new EndEffector_Setpoint_CMD(m_endEffectorSubsystem, SetpointConstants.kStowEndEffectorSetpoint))));
+                 new WaitUntilCommand(
+                                    ()->m_endEffectorSubsystem.endEffectorIntake.getStatorCurrent().getValueAsDouble() > EndEffectorConstants.kEndEffectorCurrentSpike)
+                                    .andThen(new EndEffector_Setpoint_CMD(m_endEffectorSubsystem, SetpointConstants.kStowEndEffectorSetpoint))));
 }
 }

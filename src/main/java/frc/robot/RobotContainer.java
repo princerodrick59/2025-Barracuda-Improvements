@@ -483,6 +483,9 @@ public class RobotContainer
       );
 
 
+      DRIVER_POV_UP.onTrue(m_STOW_CMD);
+
+
 
 
 

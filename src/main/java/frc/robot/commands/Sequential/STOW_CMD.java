@@ -29,7 +29,7 @@ public class STOW_CMD extends SequentialCommandGroup {
 
     addCommands(
     new ParallelCommandGroup(
-                new Elevator_Setpoint_CMD(m_elevatorSubsystem, SetpointConstants.kStowElevatorSetpoint), 
+                new Elevator_Setpoint_CMD(m_elevatorSubsystem, SetpointConstants.kStowElevatorSetpoint).until(()->m_elevatorSubsystem.isAtBottomLimit()), 
                 new EndEffector_Setpoint_CMD(m_endEffectorSubsystem, SetpointConstants.kStowEndEffectorSetpoint)));
   }
 }
