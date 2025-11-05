@@ -55,10 +55,6 @@ public class AlignToReef extends Command {
   private EndEffectorSubsystem m_endEffectorSubsystem;
 
   //Enums
-  public enum ReefSide {
-    LEFT, 
-    RIGHT
-  }
 
   public enum ReefLevel {
     L1,
@@ -83,6 +79,12 @@ public class AlignToReef extends Command {
     Lima
   }
 
+  public enum ReefSide{
+    LEFT,
+    RIGHT,
+    ANY
+  }
+
   private ReefLevel desiredLevel = ReefLevel.STOW;
 
   private boolean isAutoAdjustActive = false;
@@ -90,8 +92,6 @@ public class AlignToReef extends Command {
   private ArrayList<Pose2d> allReefPoses = new ArrayList<Pose2d>();
   private ArrayList<Pose2d> leftReefPoses = new ArrayList<Pose2d>();
   private ArrayList<Pose2d> rightReefPoses = new ArrayList<Pose2d>();
-  private ArrayList<Pose2d> POVBasedLeftReefPoses = new ArrayList<Pose2d>();
-  private ArrayList<Pose2d> POVBasedRightReefPoses = new ArrayList<Pose2d>();
 
   private Pose2d m_targetPose = new Pose2d();
 
@@ -137,21 +137,6 @@ public class AlignToReef extends Command {
     rightReefPoses.add(ReefConstants.kJuliet_Reef);
     rightReefPoses.add(ReefConstants.kLima_Reef);
 
-    //add POV based left reef poses to list
-    POVBasedLeftReefPoses.add(ReefConstants.kAlpha_Reef);
-    POVBasedLeftReefPoses.add(ReefConstants.kCharlie_Reef);
-    POVBasedLeftReefPoses.add(ReefConstants.kFoxtrot_Reef);
-    POVBasedLeftReefPoses.add(ReefConstants.kHotel_Reef);
-    POVBasedLeftReefPoses.add(ReefConstants.kJuliet_Reef);
-    POVBasedLeftReefPoses.add(ReefConstants.kKilo_Reef);
-
-    //add POV based right reef poses to list
-    POVBasedRightReefPoses.add(ReefConstants.kBravo_Reef);
-    POVBasedRightReefPoses.add(ReefConstants.kDelta_Reef);
-    POVBasedRightReefPoses.add(ReefConstants.kEcho_Reef);
-    POVBasedRightReefPoses.add(ReefConstants.kGolf_Reef);
-    POVBasedRightReefPoses.add(ReefConstants.kIndia_Reef);
-    POVBasedRightReefPoses.add(ReefConstants.kLima_Reef);
   }
   /**
    * Method to generate a command to follow a path to a waypoint | 
@@ -255,29 +240,22 @@ public class AlignToReef extends Command {
   }
 
   /**
-   * Method to get the closest reef branch to the current pose
+   * Method to get the closest left reef branch
+   * @param branch ENUM of closest branch
    * @param currentPose Current Pose2d of the robot
-   * @return Pose2d of the closest reef branch
+   * @return Pose2d of the closest reef branch based on enum
    */
-  private Pose2d getClosestBranch(Pose2d currentPose){
-  return currentPose.nearest(allReefPoses);
-  }
-
-  /** 
-   * Method to get the closest left reef branch to the current pose
-   * @param currentPose Current Pose2d of the robot
-   * @return Pose2d of the closest left reef branch
-   */
-  private Pose2d getClosestLeftBranch(Pose2d currentPose){
-    return currentPose.nearest(leftReefPoses);
-  }
-  /** 
-   * Method to get the closest right reef branch to the current pose
-   * @param currentPose Current Pose2d of the robot
-   * @return Pose2d of the closest right reef branch
-   */
-  private Pose2d getClosestRightBranch(Pose2d currentPose){
-    return currentPose.nearest(rightReefPoses);
+  private Pose2d getClosestBranch(ReefSide branch ,Pose2d currentPose){
+    switch (branch) {
+      case LEFT:
+        return currentPose.nearest(leftReefPoses);
+      case RIGHT:
+        return currentPose.nearest(rightReefPoses);
+      case ANY:
+        return currentPose.nearest(allReefPoses);   
+      default:
+        return new Pose2d();
+    }
   }
 
   /**
@@ -286,106 +264,16 @@ public class AlignToReef extends Command {
    * @return Command to align to the desired reef branch
    */
   public Command AlignToDesiredBranch(ReefBranch branch){
-    switch (branch) {
-      case Alpha:
+
+    if (branch.ordinal() >= 0 && branch.ordinal() < allReefPoses.size()) {
 
       return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(0));
+        return getPathFromWaypoint(allReefPoses.get(branch.ordinal()));
       }, Set.of());
 
-      case Bravo:
-      return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(1));
-      }, Set.of());
-
-      case Charlie:
-      return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(2));
-      }, Set.of());
-
-      case Delta:
-      return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(3));
-      }, Set.of());
-
-      case Echo:
-      return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(4));
-      }, Set.of());
-
-      case Foxtrot:
-      return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(5));
-      }, Set.of());
-
-      case Golf:
-      return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(6));
-      }, Set.of());
-
-      case Hotel:
-      return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(7));
-      }, Set.of());
-
-      case India:
-      return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(8));
-      }, Set.of());
-
-      case Juliet:
-      return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(9));
-      }, Set.of());
-
-      case Kilo:
-      return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(10));
-      }, Set.of());
-
-      case Lima:
-      return Commands.defer(()-> {
-        return getPathFromWaypoint(allReefPoses.get(11));
-      }, Set.of());
-
-      default:
-      return Commands.none();
-      
-
-    
-    
     }
-  }
-
-  /**
-   * Method to align to the closest left reef branch
-   * @return Command to align to the closest left reef branch
-   */
-  private Command AlignToTheClosestLeftReefBranch(){
-    return Commands.defer(()->{
-    return getPathFromWaypoint(getClosestLeftBranch(m_swerveSubsystem.getPose()));
-    }, Set.of());
-  }
-
-  /**
-   * Method to align to the closest right reef branch
-   * @return Command to align to the closest right reef branch
-   */
-  private Command AlignToTheClosestRightReefBranch(){
-    return Commands.defer(()->{
-      return getPathFromWaypoint(getClosestRightBranch(m_swerveSubsystem.getPose()));
-    }, Set.of());
-  }
-
-
-    /**
-   * Method to align to the closest reef branch
-   * @return Command to align to the closest reef branch
-   */
-  public Command AlignToTheClosestReefBranch(){
-    return Commands.defer(()-> {
-      return getPathFromWaypoint(getClosestBranch(m_swerveSubsystem.getPose()));
-    }, Set.of());
+    return Commands.none();
+    
   }
 
   /**
@@ -396,11 +284,22 @@ public class AlignToReef extends Command {
   public Command AlignToTheClosestBranch(ReefSide side){
     switch (side) {
       case LEFT:
-        return AlignToTheClosestLeftReefBranch();
+        return Commands.defer(()->{
+          return getPathFromWaypoint(getClosestBranch(ReefSide.LEFT, m_swerveSubsystem.getPose()));
+          }, Set.of());
+
       case RIGHT:
-        return AlignToTheClosestRightReefBranch();
+        return Commands.defer(()->{
+          return getPathFromWaypoint(getClosestBranch(ReefSide.RIGHT, m_swerveSubsystem.getPose()));
+        }, Set.of());
+
+      case ANY:
+      return Commands.defer(()-> {
+        return getPathFromWaypoint(getClosestBranch(ReefSide.ANY, m_swerveSubsystem.getPose()));
+      }, Set.of());
+
       default:
-      return AlignToTheClosestRightReefBranch();
+        return Commands.none();
     }
   }
 
@@ -452,6 +351,9 @@ public class AlignToReef extends Command {
   public boolean getIsAutoAdjustActive(){
     return isAutoAdjustActive;
   }
+
+
+
   @AutoLogOutput (key = "Commands/AlignToReef/TargetPoseXError")
   public double getTargetPoseXError(){
     return m_swerveSubsystem.getPose().getX() - m_targetPose.getX();
